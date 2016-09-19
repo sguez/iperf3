@@ -29,7 +29,7 @@ _stop
 	for ((i=0;i<$COUNT_PORT;i++)) 
 	do
 		let PORTL=$(($INIT_PORT+$i))
-		nohup /usr/bin/iperf3 -s -p ${PORTL} -D  --logfile "/var/log/nevada_atp_iperf.log" >/dev/null 2>&1
+		nohup iperf3 -s -p ${PORTL} -D  --logfile "/var/log/nevada_atp_iperf.log" >/dev/null 2>&1
 	done
 }
 

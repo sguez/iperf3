@@ -92,11 +92,11 @@ LOGGING="/var/log/nevada_atp_iperf_`date +%s`_${MAXBW}M_${NOTE}.log"
 
 if [ `ps -C iperf3 | wc -l` == "1" ]
 then
- /usr/bin/iperf3 --client ${SERVERDST} -t ${TIMETL} ${PROTOCOL} -b "$MAXBW64"B -l 64B -p 5201 -f k -T "`date "+%F %R:%S"` ${SERVERDST}  64B $HOSTNAME" --logfile ${LOGGING} >/dev/null 2>&1 &
-  /usr/bin/iperf3 --client ${SERVERDST} -t ${TIMETL} ${PROTOCOL} -b "$MAXBW100"B -l 100B -p 5202 -f k -T "`date "+%F %R:%S"` ${SERVERDST}  100B $HOSTNAME" --logfile ${LOGGING} >/dev/null 2>&1 &
-  /usr/bin/iperf3 --client ${SERVERDST} -t ${TIMETL} ${PROTOCOL} -b "$MAXBW500"B -l 500B -p 5203 -f k -T "`date "+%F %R:%S"` ${SERVERDST}  500B $HOSTNAME" --logfile ${LOGGING} >/dev/null 2>&1 &
-  /usr/bin/iperf3 --client ${SERVERDST} -t ${TIMETL} ${PROTOCOL} -b "$MAXBW1000"B -l 1000B -p 5204 -f k -T "`date "+%F %R:%S"` ${SERVERDST}  1000B $HOSTNAME" --logfile ${LOGGING} >/dev/null 2>&1 &
-  /usr/bin/iperf3 --client ${SERVERDST} -t ${TIMETL} ${PROTOCOL} -b "$MAXBW1200"B -l 1200B -p 5205 -f k -T "`date "+%F %R:%S"` ${SERVERDST}  1200B $HOSTNAME" --logfile ${LOGGING} >/dev/null 2>&1 &
+ 	iperf3 --client ${SERVERDST} -t ${TIMETL} ${PROTOCOL} -b "$MAXBW64"B -l 64B -p 5201 -f k -T "`date "+%F %R:%S"` ${SERVERDST}  64B $HOSTNAME" --logfile ${LOGGING} >/dev/null 2>&1 &
+  	iperf3 --client ${SERVERDST} -t ${TIMETL} ${PROTOCOL} -b "$MAXBW100"B -l 100B -p 5202 -f k -T "`date "+%F %R:%S"` ${SERVERDST}  100B $HOSTNAME" --logfile ${LOGGING} >/dev/null 2>&1 &
+  	iperf3 --client ${SERVERDST} -t ${TIMETL} ${PROTOCOL} -b "$MAXBW500"B -l 500B -p 5203 -f k -T "`date "+%F %R:%S"` ${SERVERDST}  500B $HOSTNAME" --logfile ${LOGGING} >/dev/null 2>&1 &
+ 	iperf3 --client ${SERVERDST} -t ${TIMETL} ${PROTOCOL} -b "$MAXBW1000"B -l 1000B -p 5204 -f k -T "`date "+%F %R:%S"` ${SERVERDST}  1000B $HOSTNAME" --logfile ${LOGGING} >/dev/null 2>&1 &
+  	iperf3 --client ${SERVERDST} -t ${TIMETL} ${PROTOCOL} -b "$MAXBW1200"B -l 1200B -p 5205 -f k -T "`date "+%F %R:%S"` ${SERVERDST}  1200B $HOSTNAME" --logfile ${LOGGING} >/dev/null 2>&1 &
 fi
 }
 
@@ -167,11 +167,11 @@ if [ ! -z ${EDGE} ] ; then
 fi
 for ((i=0;i<$MAXITERATION;i++)) ; do
 	#  Upload 
-	/usr/bin/iperf3 --client ${SERVERDST} -p ${LISTEN_UPLOAD} -t ${TIMETL} -M ${MSSSET} -N -V -f k -b ${MAXBW}M -T "`date "+%F %R:%S"` AUTOTEST_TCP_UPLOAD ${SERVERDST} iteration $i :" --logfile ${LOGGING} >/dev/null 2>&1  &
+	iperf3 --client ${SERVERDST} -p ${LISTEN_UPLOAD} -t ${TIMETL} -M ${MSSSET} -N -V -f k -b ${MAXBW}M -T "`date "+%F %R:%S"` AUTOTEST_TCP_UPLOAD ${SERVERDST} iteration $i :" --logfile ${LOGGING} >/dev/null 2>&1  &
 	#  Download 
-	/usr/bin/iperf3 --client ${SERVERDST} -p ${LISTEN_DOWNLOAD} -t ${TIMETL} -M ${MSSSET} -R -N -V -f k -b ${MAXBW}M -T "`date "+%F %R:%S"` AUTOTEST_TCP_DOWNLOAD ${SERVERDST} iteration $i :" --logfile ${LOGGING} >/dev/null 2>&1  &
+	iperf3 --client ${SERVERDST} -p ${LISTEN_DOWNLOAD} -t ${TIMETL} -M ${MSSSET} -R -N -V -f k -b ${MAXBW}M -T "`date "+%F %R:%S"` AUTOTEST_TCP_DOWNLOAD ${SERVERDST} iteration $i :" --logfile ${LOGGING} >/dev/null 2>&1  &
 	# Jitter / Loss
-	/usr/bin/iperf3 --client ${SERVERDST} -p ${UDP_PORT} -t ${TIMETL} -R -V -u --udp-counters-64bit -f k -b ${UDPBW}M -l 500B -T "`date "+%F %R:%S"` AUTOTEST_UDP_DOWNLOAD ${SERVERDST} iteration $i :" --logfile ${LOGGING} >/dev/null 2>&1  &
+	iperf3 --client ${SERVERDST} -p ${UDP_PORT} -t ${TIMETL} -R -V -u --udp-counters-64bit -f k -b ${UDPBW}M -l 500B -T "`date "+%F %R:%S"` AUTOTEST_UDP_DOWNLOAD ${SERVERDST} iteration $i :" --logfile ${LOGGING} >/dev/null 2>&1  &
 	TIMESLEEP=$(($TIMETL + 4))
 	sleep ${TIMESLEEP}
 done 
@@ -198,17 +198,17 @@ _autoit_veriables_
 for ((i=0;i<$MAXITERATION;i++)) ; do
 	if [ "$MODE" == "0" ] ; then
 		#  Upload 
-		/usr/bin/iperf3 --client ${SERVERDST} -p ${LISTEN_UPLOAD} -t ${TIMETL} -M ${MSSSET} -N -V -f k -b ${MAXBW}M -T "`date "+%F %R:%S"` AUTOTEST_TCP_UPLOAD ${SERVERDST} iteration $i :" --logfile ${LOGGING} >/dev/null 2>&1  &
+		iperf3 --client ${SERVERDST} -p ${LISTEN_UPLOAD} -t ${TIMETL} -M ${MSSSET} -N -V -f k -b ${MAXBW}M -T "`date "+%F %R:%S"` AUTOTEST_TCP_UPLOAD ${SERVERDST} iteration $i :" --logfile ${LOGGING} >/dev/null 2>&1  &
 		#  Download 
-		/usr/bin/iperf3 --client ${SERVERDST} -p ${LISTEN_DOWNLOAD} -t ${TIMETL} -M ${MSSSET} -R -N -V -f k -b ${MAXBW}M -T "`date "+%F %R:%S"` AUTOTEST_TCP_DOWNLOAD ${SERVERDST} iteration $i :" --logfile ${LOGGING} >/dev/null 2>&1  &
+		iperf3 --client ${SERVERDST} -p ${LISTEN_DOWNLOAD} -t ${TIMETL} -M ${MSSSET} -R -N -V -f k -b ${MAXBW}M -T "`date "+%F %R:%S"` AUTOTEST_TCP_DOWNLOAD ${SERVERDST} iteration $i :" --logfile ${LOGGING} >/dev/null 2>&1  &
 		TIMESLEEP=$(($TIMETL + 4))
 		sleep ${TIMESLEEP}
 	elif [ "$MODE" == "1" ] ; then
 		_buffer_calc_
 		#  Upload  window set optimal for 100Mbps over 180 ms - 100Mbps * 0.180 / 8  
-		/usr/bin/iperf3 --client ${SERVERDST} -p ${LISTEN_UPLOAD} -t ${TIMETL} -M ${MSSSET} -N -V -f k -w ${BUFFER}K -T "`date "+%F %R:%S"` AUTOTEST_TCP_UPLOAD ${SERVERDST} iteration $i :" --logfile ${LOGGING} >/dev/null 2>&1  &
+		iperf3 --client ${SERVERDST} -p ${LISTEN_UPLOAD} -t ${TIMETL} -M ${MSSSET} -N -V -f k -w ${BUFFER}K -T "`date "+%F %R:%S"` AUTOTEST_TCP_UPLOAD ${SERVERDST} iteration $i :" --logfile ${LOGGING} >/dev/null 2>&1  &
 		#  Download window set optimal for 100Mbps over 180 ms - 100Mbps * 0.180 / 8  
-		/usr/bin/iperf3 --client ${SERVERDST} -p ${LISTEN_DOWNLOAD} -t ${TIMETL} -M ${MSSSET} -R -N -V -f k -w ${BUFFER}K -T "`date "+%F %R:%S"` AUTOTEST_TCP_DOWNLOAD ${SERVERDST} iteration $i :" --logfile ${LOGGING} >/dev/null 2>&1  &
+		iperf3 --client ${SERVERDST} -p ${LISTEN_DOWNLOAD} -t ${TIMETL} -M ${MSSSET} -R -N -V -f k -w ${BUFFER}K -T "`date "+%F %R:%S"` AUTOTEST_TCP_DOWNLOAD ${SERVERDST} iteration $i :" --logfile ${LOGGING} >/dev/null 2>&1  &
 		TIMESLEEP=$(($TIMETL + 4))
 		sleep ${TIMESLEEP}
 	fi
