@@ -219,7 +219,7 @@ done
 _help () {
 echo "
 Main: 
-	-i - interactive mode enable.
+	run - Start Test Cycle Run.
 	stop - will terminate running iperf.
 	status - will show if there is running iperf.
 	clean - comperss and upload last test results , relay on provided ftp credentials for upload /tmp/ftp_cred see below format:
@@ -249,12 +249,12 @@ Note:
 
 example:
 bidirectional test 100 iteration of 60 sec each with MSS 1250 and 1MB upload and download:
-iperfc -i -a 1 -s 192.168.100.1 -t 60 -b 1 -M 1250 -c 100
-iperfc -i -a 2 -s 192.168.100.1 -t 300 -c 60 -M 1200 -b 10 -A 0 -l 5200 -n NEVADA_SAAS_SIN
+iperfc run -a 1 -s 192.168.100.1 -t 60 -b 1 -M 1250 -c 100
+iperfc run -a 2 -s 192.168.100.1 -t 300 -c 60 -M 1200 -b 10 -A 0 -l 5200 -n NEVADA_SAAS_SIN
 # SAAS Example 50Mbps with 200 RTT 
-iperfc -i -a 2 -s 192.168.100.1 -t 300 -c 60 -M 1200 -b 10 -A 1 -b 50 -r 200 -l 5200 -n NEVADA_SAAS_SIN
+iperfc run -a 2 -s 192.168.100.1 -t 300 -c 60 -M 1200 -b 10 -A 1 -b 50 -r 200 -l 5200 -n NEVADA_SAAS_SIN
 # SAAS shaping 10Mbps
-iperfc -i -a 2 -s 192.168.100.1 -t 300 -c 60 -M 1200 -b 10 -A 0 -l 5200 -n NEVADA_SAAS_SIN
+iperfc run -a 2 -s 192.168.100.1 -t 300 -c 60 -M 1200 -b 10 -A 0 -l 5200 -n NEVADA_SAAS_SIN
 "
 }
 
@@ -281,7 +281,7 @@ trap ctrl_c INT
 
 AUTOTEST=0
 case $COMMAND in
-        "-i")
+        "run")
                 while getopts :a:c:b:s:p:t:M:l:n:e:A:r: opt; 
                 do
 			case $opt in
