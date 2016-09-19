@@ -1,0 +1,341 @@
+#!/bin/bash
+# iperfc server side
+# Auther : Shiran Guez
+# Date   : Dec 21 2015
+#
+# Sync Time
+#
+if [ ! -z "$1" ] ; then
+        COMMAND="$1"
+fi
+
+
+_time_ () {
+if [[ "$TIMETL" -ge 1 && "$TIMETL" -le 10080 ]] ; then
+        # between 1 min to 1 week
+        let TIMETL=$(($TIMETL*60))
+else
+        TIMETL=300 # default 5MIN
+fi
+}
+
+_bw_ () {
+# Ratio
+#64 bytes - 10%
+#100 bytes - 20%
+#500 bytes - 20%
+#1000 bytes - 20%
+#1200 bytes - 30%
+if [ -z $MAXBW ] ; then
+        MAXBW=2 # default 2MB
+fi
+if [ $MAXBW -ge 1 -a $MAXBW -le 20 ] ; then
+        MAXBWM=$(echo "($MAXBW * 1000000)" | bc)
+        MAXBW64=$(echo "$MAXBWM * 0.1" | bc)
+        MAXBW100=$(echo "$MAXBWM * 0.2" | bc)
+        MAXBW500=$(echo "$MAXBWM * 0.2" | bc)
+        MAXBW1000=$(echo "$MAXBWM * 0.2" | bc)
+        MAXBW1200=$(echo "$MAXBWM * 0.3" | bc)
+fi
+}
+
+_mss_set_ () {
+if [ -z $MSSSET ] ; then
+        MSSSET=1300
+fi
+}
+
+_proto_ () {
+if [ -z $PROTO ] ; then
+        PROTO=udp
+fi
+case $PROTO in
+        tcp)
+                PROTOCOL="-V -R -M $MSSSET -C cubic -N --get-server-output"
+        ;;
+        udp)
+                PROTOCOL="-V -u --udp-counters-64bit --get-server-output"
+
+        ;;
+        sctp)
+                PROTOCOL="-V --sctp -R -C cubic -N --get-server-output"
+        ;;
+        *)
+                echo "Invalid Protocol $PROTO"
+esac
+}
+_stop (){
+        pkill iperf3 2>/dev/null >/dev/null
+        pkill iperfc 2>/dev/null >/dev/null
+        pgrep iperf3  2>/dev/null >/dev/null
+        if [ $? -ne 0 ] ;then
+                sleep 0.1
+                pkill -9 iperf3 2>/dev/null >/dev/null
+                sleep 0.1
+        fi
+        pgrep iperfc 2>/dev/null >/dev/null
+        if [ $? -ne 0 ] ;then
+                sleep 0.1
+                pkill -9 iperfc 2>/dev/null >/dev/null
+                sleep 0.1
+        fi
+}
+
+_start () {
+# NTP Sync
+ntpdate clock-a.akamai.com
+_stop
+if [ -z $NOTE ] ; then
+	NOTE="${SERVERDST}"
+fi
+LOGGING="/var/log/nevada_atp_iperf_`date +%s`_${MAXBW}M_${NOTE}.log"
+
+if [ `ps -C iperf3 | wc -l` == "1" ]
+then
+ /usr/bin/iperf3 --client ${SERVERDST} -t ${TIMETL} ${PROTOCOL} -b "$MAXBW64"B -l 64B -p 5201 -f k -T "`date "+%F %R:%S"` ${SERVERDST}  64B $HOSTNAME" --logfile ${LOGGING} >/dev/null 2>&1 &
+  /usr/bin/iperf3 --client ${SERVERDST} -t ${TIMETL} ${PROTOCOL} -b "$MAXBW100"B -l 100B -p 5202 -f k -T "`date "+%F %R:%S"` ${SERVERDST}  100B $HOSTNAME" --logfile ${LOGGING} >/dev/null 2>&1 &
+  /usr/bin/iperf3 --client ${SERVERDST} -t ${TIMETL} ${PROTOCOL} -b "$MAXBW500"B -l 500B -p 5203 -f k -T "`date "+%F %R:%S"` ${SERVERDST}  500B $HOSTNAME" --logfile ${LOGGING} >/dev/null 2>&1 &
+  /usr/bin/iperf3 --client ${SERVERDST} -t ${TIMETL} ${PROTOCOL} -b "$MAXBW1000"B -l 1000B -p 5204 -f k -T "`date "+%F %R:%S"` ${SERVERDST}  1000B $HOSTNAME" --logfile ${LOGGING} >/dev/null 2>&1 &
+  /usr/bin/iperf3 --client ${SERVERDST} -t ${TIMETL} ${PROTOCOL} -b "$MAXBW1200"B -l 1200B -p 5205 -f k -T "`date "+%F %R:%S"` ${SERVERDST}  1200B $HOSTNAME" --logfile ${LOGGING} >/dev/null 2>&1 &
+fi
+}
+
+_autoit_veriables_ () {
+# NTP Sync
+ntpdate clock-a.akamai.com
+# Default Iteration time 5min
+if [ -z $TIMETL ] ; then
+	TIMETL=300
+fi
+# Default MSS 1300B
+if [ -z $MSSSET ] ; then
+	MSSSET=1300
+fi
+# if user entered -l port else default set to 5200 / 5201
+if [ ! -z $LISTEN ] ; then
+	LISTEN_UPLOAD=$LISTEN
+	LISTEN_DOWNLOAD=$(($LISTEN + 1))
+	UDP_PORT=$(($LISTEN + 2))
+else
+	LISTEN_UPLOAD=5200
+	LISTEN_DOWNLOAD=5201
+	UDP_PORT=5202
+fi
+# Default BW 2MB
+if [ -z $MAXBW ] ; then
+	MAXBW=2
+	UDPBW=$(echo "$MAXBW*0.1" | bc)
+else
+	UDPBW=$(echo "$MAXBW*0.1" | bc)
+fi
+if [ -z $NOTE ] ; then
+	NOTE="${SERVERDST}"
+fi
+LOGGING="/var/log/nevada_atp_iperf_`date +%s`_${MAXBW}M_${NOTE}.log"
+LOGGINGICMP="/var/log/ping_nevada_atp_iperf_`date +%s`_${MAXBW}M_${NOTE}.log"
+echo "LOGGING=${LOGGING}" > /tmp/last_logging_${NOTE}
+echo "LOGGINGICMP=${LOGGINGICMP}" >> /tmp/last_logging_${NOTE}
+}
+
+_clean_ (){
+for i in `ls /tmp/last_logging_*`
+do
+source ${i}
+tar -zcvf ${LOGGING}.tar.gz ${LOGGING} ${LOGGINGICMP} ${LOGGINGICMPEDGE} 2> /dev/null >/dev/null
+rm -f ${LOGGING} ${LOGGINGICMP} ${LOGGINGICMPEDGE} 2> /dev/null  >/dev/null
+if [ -e "/tmp/ftp_cred" ] ; then
+	source /tmp/ftp_cred
+	curl -T ${LOGGING}.tar.gz ftp://${FTPSERVER} --user ${FUSERNAME}:${FPASSWORD} 2> /dev/null >/dev/null
+fi
+done
+}
+
+_autoit_ () {
+_autoit_veriables_
+if [ -z $MAXITERATION ] ; then
+	MAXITERATION=10
+fi 
+# Start Ping
+ping -s ${MSSSET} ${SERVERDST} | while read pong; do echo "$(date "+%F %R:%S") AUTOTEST_ICMP_TEST : $pong"; done >> ${LOGGINGICMP} & 2>/dev/null
+PINGPID=$!
+# Add CPE to EDGE test
+if [ ! -z ${EDGE} ] ; then
+	LOGGINGICMPEDGE="/var/log/ping_edge_nevada_atp_iperf_`date +%s`_${MAXBW}M_${NOTE}.log"
+	echo "LOGGINGICMPEDGE=${LOGGINGICMPEDGE}"  >> /tmp/last_logging_${NOTE}
+	ping -s ${MSSSET} ${EDGE} | while read pong; do echo "$(date "+%F %R:%S") AUTOTEST_ICMP_EDGE_TEST : $pong"; done >> ${LOGGINGICMPEDGE} & 2>/dev/null
+	PINGPIDEDGE=$!
+fi
+for ((i=0;i<$MAXITERATION;i++)) ; do
+	#  Upload 
+	/usr/bin/iperf3 --client ${SERVERDST} -p ${LISTEN_UPLOAD} -t ${TIMETL} -M ${MSSSET} -N -V -f k -b ${MAXBW}M -T "`date "+%F %R:%S"` AUTOTEST_TCP_UPLOAD ${SERVERDST} iteration $i :" --logfile ${LOGGING} >/dev/null 2>&1  &
+	#  Download 
+	/usr/bin/iperf3 --client ${SERVERDST} -p ${LISTEN_DOWNLOAD} -t ${TIMETL} -M ${MSSSET} -R -N -V -f k -b ${MAXBW}M -T "`date "+%F %R:%S"` AUTOTEST_TCP_DOWNLOAD ${SERVERDST} iteration $i :" --logfile ${LOGGING} >/dev/null 2>&1  &
+	# Jitter / Loss
+	/usr/bin/iperf3 --client ${SERVERDST} -p ${UDP_PORT} -t ${TIMETL} -R -V -u --udp-counters-64bit -f k -b ${UDPBW}M -l 500B -T "`date "+%F %R:%S"` AUTOTEST_UDP_DOWNLOAD ${SERVERDST} iteration $i :" --logfile ${LOGGING} >/dev/null 2>&1  &
+	TIMESLEEP=$(($TIMETL + 4))
+	sleep ${TIMESLEEP}
+done 
+# END Ping
+kill -9 $PINGPID 2>/dev/null >/dev/null
+if [ ! -z ${PINGPIDEDGE} ] ; then
+	kill -9 $PINGPIDEDGE 2>/dev/null >/dev/null
+fi
+}
+
+_buffer_calc_ () {
+if [ -z ${RTT} ] ; then
+	RTT=180
+fi 
+if [ -z ${MAXBW} ] ; then
+	MAXBW=100
+fi
+TMPBUFFER=$(echo "($MAXBW * 1000000 * ($RTT/1000))/8" | bc -l)
+BUFFER=$(echo "$TMPBUFFER/1000" | bc )
+}
+
+_saas_test_ (){
+_autoit_veriables_
+for ((i=0;i<$MAXITERATION;i++)) ; do
+	if [ "$MODE" == "0" ] ; then
+		#  Upload 
+		/usr/bin/iperf3 --client ${SERVERDST} -p ${LISTEN_UPLOAD} -t ${TIMETL} -M ${MSSSET} -N -V -f k -b ${MAXBW}M -T "`date "+%F %R:%S"` AUTOTEST_TCP_UPLOAD ${SERVERDST} iteration $i :" --logfile ${LOGGING} >/dev/null 2>&1  &
+		#  Download 
+		/usr/bin/iperf3 --client ${SERVERDST} -p ${LISTEN_DOWNLOAD} -t ${TIMETL} -M ${MSSSET} -R -N -V -f k -b ${MAXBW}M -T "`date "+%F %R:%S"` AUTOTEST_TCP_DOWNLOAD ${SERVERDST} iteration $i :" --logfile ${LOGGING} >/dev/null 2>&1  &
+		TIMESLEEP=$(($TIMETL + 4))
+		sleep ${TIMESLEEP}
+	elif [ "$MODE" == "1" ] ; then
+		_buffer_calc_
+		#  Upload  window set optimal for 100Mbps over 180 ms - 100Mbps * 0.180 / 8  
+		/usr/bin/iperf3 --client ${SERVERDST} -p ${LISTEN_UPLOAD} -t ${TIMETL} -M ${MSSSET} -N -V -f k -w ${BUFFER}K -T "`date "+%F %R:%S"` AUTOTEST_TCP_UPLOAD ${SERVERDST} iteration $i :" --logfile ${LOGGING} >/dev/null 2>&1  &
+		#  Download window set optimal for 100Mbps over 180 ms - 100Mbps * 0.180 / 8  
+		/usr/bin/iperf3 --client ${SERVERDST} -p ${LISTEN_DOWNLOAD} -t ${TIMETL} -M ${MSSSET} -R -N -V -f k -w ${BUFFER}K -T "`date "+%F %R:%S"` AUTOTEST_TCP_DOWNLOAD ${SERVERDST} iteration $i :" --logfile ${LOGGING} >/dev/null 2>&1  &
+		TIMESLEEP=$(($TIMETL + 4))
+		sleep ${TIMESLEEP}
+	fi
+done 
+}
+
+
+_help () {
+echo "
+Main: 
+	-i - interactive mode enable.
+	stop - will terminate running iperf.
+	status - will show if there is running iperf.
+	clean - comperss and upload last test results , relay on provided ftp credentials for upload /tmp/ftp_cred see below format:
+			FTPSERVER=ftp.server.com
+			FUSERNAME=user
+			FPASSWORD=pass
+	log - std output log (tail -f).
+	help - display the following menu.
+Sub Options:
+when running the -i you have following must input options and optional 
+Must Options:
+	-s - destination server
+Optional:
+	-a - Auto test value 0 - disable or 1 - enable or 2 - enable SAAS Test , perform bidirectional upload download testing (default is 0) of tcp and additional provide jitter / loss based on udp and rtt based on ICMP
+	-c - number of iteration's to run (available only with -a)
+	-t - time in sec to run (with -a that is time for each iteration)
+	-b - enter number between 1 - 20 value is in MB
+	-p - allow user to specify protocol tcp (default and only option with -a) udp (default without -a) sctp (not available with -a)
+	-M - MSS default is 1300B
+	-n - Test Note, will be appended to the name of the log '/var/log/nevada_atp_iperf_`date +%s`_${MAXBW}M_${NOTE}.log'
+	-e - test CPE to Edge delay veriation please specify the Edge IP / host
+	-A - SAAS test options 0 - specify bw shaping for iperf, 1 - specify RTT and BW and from that we will set the requierd Window (buffer).
+	-r - used with SAAS test to calculate the needed window.
+Note: 
+	SAAS Test - perform TCP upload / download , optimal window set for 180ms RTT and 100Mbps
+	AutoTest - perform TCP upload / download UDP and ICMP for Stability , Loss , Latency , Reorder. 
+
+example:
+bidirectional test 100 iteration of 60 sec each with MSS 1250 and 1MB upload and download:
+iperfc -i -a 1 -s 192.168.100.1 -t 60 -b 1 -M 1250 -c 100
+iperfc -i -a 2 -s 192.168.100.1 -t 300 -c 60 -M 1200 -b 10 -A 0 -l 5200 -n NEVADA_SAAS_SIN
+# SAAS Example 50Mbps with 200 RTT 
+iperfc -i -a 2 -s 192.168.100.1 -t 300 -c 60 -M 1200 -b 10 -A 1 -b 50 -r 200 -l 5200 -n NEVADA_SAAS_SIN
+# SAAS shaping 10Mbps
+iperfc -i -a 2 -s 192.168.100.1 -t 300 -c 60 -M 1200 -b 10 -A 0 -l 5200 -n NEVADA_SAAS_SIN
+"
+}
+
+_status () {
+        pgrep iperf3  2>/dev/null >/dev/null
+        if [ $? -eq 0 ] ;then
+                echo "iperfc service [ running ] "
+        else
+                echo "iperfc service [ stopped ] "
+        fi
+}
+
+
+_logging () {
+        tail -f /var/log/nevada_atp_iperf*.log
+}
+
+trap ctrl_c INT
+function ctrl_c() {
+        echo "Trapped CTRL-C"
+        exit 1
+}
+trap ctrl_c INT
+
+AUTOTEST=0
+case $COMMAND in
+        "-i")
+                while getopts :a:c:b:s:p:t:M:l:n:e:A:r: opt; 
+                do
+			case $opt in
+				(a) AUTOTEST="${OPTARG}" ;;
+				(c) MAXITERATION="${OPTARG}" ;;
+				(b) MAXBW="${OPTARG}" ;;
+				(s) SERVERDST="${OPTARG}";;
+				(p) PROTO="${OPTARG}";;
+				(t) TIMETL="${OPTARG}";;
+				(M) MSSSET="${OPTARG}";;
+				(l) LISTEN="${OPTARG}";;
+				(n) NOTE="${OPTARG}";;
+				(e)	EDGE="${OPTARG}";;
+				(A) MODE="${OPTARG}" ;;
+				(r) RTT="${OPTARG}" ;;
+			esac
+                done
+                shift $((OPTIND-1))
+                if [ ! -z $SERVERDST ] ; then
+				if [ "$AUTOTEST" == "0" ] ; then
+					_time_
+					_bw_ 
+					_mss_set_
+					_proto_ 
+					_start
+				elif [ "$AUTOTEST" == "1" ] ; then
+					_autoit_ & # Run in BG
+				elif [ "$AUTOTEST" == "2" ] ; then
+					_saas_test_ & # Run in BG
+				fi
+                else
+                        echo "No DST Server was entered!"
+                fi
+                sleep 3
+                _status
+        ;;
+        "stop")
+                _stop
+                _status
+        ;;
+        "status")
+                _status
+        ;;
+        "log")
+                _logging
+        ;;
+	"clean")
+		_clean_ 
+	;;
+	"help")
+		_help
+
+		;;
+        *)
+                echo "This is not a valid option"
+				_help
+esac

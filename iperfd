@@ -1,0 +1,132 @@
+#!/bin/bash
+#  iperfd server side
+# Auther : Shiran Guez
+# Date   : Jun 09 2016
+# Version 2.0
+
+
+
+_stop (){
+        pkill iperf3 2>/dev/null >/dev/null
+        pkill iperfd 2>/dev/null >/dev/null
+        pgrep iperf3  2>/dev/null >/dev/null
+        if [ $? -ne 0 ] ;then
+                sleep 0.1
+                pkill -9 iperf3 2>/dev/null >/dev/null
+                sleep 0.1
+        fi
+        pgrep iperfd 2>/dev/null >/dev/null
+        if [ $? -ne 0 ] ;then
+                sleep 0.1
+                pkill -9 iperfd 2>/dev/null >/dev/null
+                sleep 0.1
+        fi
+}
+
+_start () {
+_stop
+	_stop
+	for ((i=0;i<$COUNT_PORT;i++)) 
+	do
+		let PORTL=$(($INIT_PORT+$i))
+		nohup /usr/bin/iperf3 -s -p ${PORTL} -D  --logfile "/var/log/nevada_atp_iperf.log" >/dev/null 2>&1
+	done
+}
+
+_status () {
+        pgrep iperf3  2>/dev/null >/dev/null
+        if [ $? -eq 0 ] ;then
+                echo "iperfd service [ running ] "
+        else
+                echo "iperfd service [ stopped ] "
+        fi
+}
+
+
+_clear_logging () {
+#backup old log
+cp -f /var/log/nevada_atp_iperf.log /var/log/nevada_atp_iperf_`date +%s`.log
+# remove current
+rm -f /var/log/nevada_atp_iperf.log
+# create log
+touch /var/log/nevada_atp_iperf.log
+}
+
+
+_logging () {
+        tail -f /var/log/nevada_atp_iperf.log
+}
+
+trap ctrl_c INT
+function ctrl_c() {
+        echo "Trapped CTRL-C"
+        exit 1
+}
+trap ctrl_c INT
+
+
+#case $COMMAND in
+#        "start")
+#                _start $2
+#                _status
+#        ;;
+#        "stop")
+#                _stop
+#                _status
+#        ;;
+#        "status")
+#                _status
+#        ;;
+#        "log")
+#                _logging
+#        ;;
+#		"clear") _clear_logging
+#		;;
+#        *)
+#                echo "This is not a valid option"
+#esac
+if [ -z "$1" ] ; then
+        echo "Options: [ -s|--start [options : -p {start port(default 5000)} -n {number of ports(default 10)}] , -S|--show , -k|--kill , -l|--log , -c|--clear ] "
+else
+	OPER=$1
+	case  $OPER in
+		-s|--start)
+			while getopts :p:n: options;
+			do
+				case $options in
+					(p)
+						INIT_PORT=${OPTARG}
+						
+					;;
+					(n)
+						COUNT_PORT=${OPTARG}	
+					;;
+				esac
+			done	
+			shift $((OPTIND-1))
+			if [ -z $INIT_PORT ] ;then
+				INIT_PORT=5000
+			fi
+			if [ -z $COUNT_PORT ] ; then
+				COUNT_PORT=10
+			fi
+			_start
+			_status
+		;;
+		-k|--kill)
+			_stop
+			_status
+		;;
+		-S|--show)
+			_status
+		;;
+		-l|--log)
+			_logging
+		;;
+		-c|--clear)
+			_clear_logging
+		;;
+		*)
+			 echo "This is not a valid option"
+       esac
+fi
